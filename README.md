@@ -34,10 +34,6 @@ MAR = vertical mouth distance / horizontal mouth distance
 
 If MAR > threshold → Yawning detected
 
-## 🚀 Future Improvements
-
-* Head pose tracking
-* CNN/LSTM fatigue prediction
-* Mobile deployment
+# Future Improvements
 * Edge device optimization
 
