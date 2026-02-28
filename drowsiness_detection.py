@@ -1,5 +1,5 @@
 """
-🚗 Driver Drowsiness Detection  v4.0
+ Driver Drowsiness Detection  v4.0
 =====================================
 Works with MediaPipe 0.10+ (Tasks API)
 Auto-downloads the required model file on first run.
@@ -30,15 +30,15 @@ MODEL_URL  = (
 )
 
 if not os.path.exists(MODEL_PATH):
-    print("📥 Downloading MediaPipe face model (~6 MB) — first run only …")
+    print(" Downloading MediaPipe face model (~6 MB) — first run only …")
     try:
         import urllib.request
         urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
-        print("✅ Model downloaded.\n")
+        print("Model downloaded.\n")
     except Exception as e:
-        print(f"❌ Download failed: {e}")
-        print(f"   Download manually from:\n   {MODEL_URL}")
-        print(f"   Save as: {MODEL_PATH}  (same folder as this script)")
+        print(f" Download failed: {e}")
+        print(f" Download manually from:\n   {MODEL_URL}")
+        print(f" Save as: {MODEL_PATH}  (same folder as this script)")
         sys.exit(1)
 
 # ══════════════════════════════════════════════════════════
@@ -60,10 +60,10 @@ try:
         output_face_blendshapes       = True,   # needed for yawn via blendshape
     )
     landmarker = FaceLandmarker.create_from_options(options)
-    print("✅ MediaPipe FaceLandmarker ready (Tasks API)")
+    print(" MediaPipe FaceLandmarker ready (Tasks API)")
 
 except Exception as e:
-    print(f"❌ MediaPipe init failed: {e}")
+    print(f" MediaPipe init failed: {e}")
     sys.exit(1)
 
 # ══════════════════════════════════════════════════════════
@@ -205,7 +205,7 @@ def calibrate(cap):
         cv2.waitKey(1)
 
     if len(ear_samples) < 5:
-        print("⚠️  Not enough data — using defaults")
+        print("  Not enough data — using defaults")
         return 0.20, 0.25, 0.30   # ear_thresh, blink_thresh, jaw_thresh
 
     avg_ear = float(np.percentile(ear_samples, 20))
@@ -215,8 +215,8 @@ def calibrate(cap):
     blink_thr = round(max(0.20, min(avg_ear * 0.55, 0.24)), 3)
     jaw_thr   = round(max(0.20, min(avg_jaw * 3.5,  0.55)), 3)
 
-    print(f"✅ EAR open={np.mean(ear_samples):.3f}  → close_thr={ear_thr}  blink_thr={blink_thr}")
-    print(f"✅ JAW rest={avg_jaw:.3f}  → yawn_thr={jaw_thr}\n")
+    print(f" EAR open={np.mean(ear_samples):.3f}  → close_thr={ear_thr}  blink_thr={blink_thr}")
+    print(f" JAW rest={avg_jaw:.3f}  → yawn_thr={jaw_thr}\n")
     return ear_thr, blink_thr, jaw_thr
 
 # ══════════════════════════════════════════════════════════
@@ -303,11 +303,11 @@ import mediapipe as mp   # needed for mp.Image
 
 def main():
     _init_sound()
-    print(f"🔊 Sound: {_snd_method}")
+    print(f" Sound: {_snd_method}")
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
-        print("❌ Cannot open webcam.")
+        print(" Cannot open webcam.")
         sys.exit(1)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH,  640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
@@ -324,7 +324,7 @@ def main():
     alert_end = 0.0
     DROWSY_SEC = 1.5
 
-    print("🎥 Running … press Q to quit\n")
+    print(" Running … press Q to quit\n")
     beep(800, 0.25)   # startup ping
 
     while True:
@@ -332,7 +332,7 @@ def main():
         if not ret: break
 
         frame = cv2.flip(frame, 1)
-        H, W  = frame.shape[:2]
+        H, W  = frame.shape[:3]
         now   = time.time()
 
         ear_raw = 0.30
@@ -410,7 +410,7 @@ def main():
     cap.release()
     cv2.destroyAllWindows()
     landmarker.close()
-    print(f"\n👋 Session ended — Total blinks: {blink_det.count}")
+    print(f"\n Session ended — Total blinks: {blink_det.count}")
 
 if __name__ == "__main__":
     main()
