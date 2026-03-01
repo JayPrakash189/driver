@@ -12,6 +12,10 @@ RUN:
 """
 
 import os, sys, time, threading, urllib.request
+os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "0"
+os.environ["LIBGL_ALWAYS_SOFTWARE"]    = "1"
+os.environ["QT_QPA_PLATFORM"]          = "offscreen"
+os.environ["DISPLAY"]                  = ""
 import cv2
 import numpy as np
 import streamlit as st
