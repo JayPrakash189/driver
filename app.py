@@ -104,8 +104,10 @@ class DetectionState:
         self.blinks      = 0
         self.yawns       = 0
         self.yawn_frames = 0
-        self._in_yawn    = False
-        self.alert       = ""          # "" | "DROWSY" | "YAWN"
+        self._in_yawn      = False
+        self._distraction  = None
+        self.alert       = ""          # "" | "DROWSY" | "YAWN" | "DISTRACTED"
+        self.distract_frames = 0      
         self.face_found  = False
         self.ear_history = []          # last 3 frames
         self.jaw_history = []
@@ -125,7 +127,7 @@ class DetectionState:
                 face_found  = self.face_found,
             )
 
-    def update(self, ear_raw, jaw_raw, face_ok, ear_thr, jaw_thr, drowsy_sec):
+    def update(self, ear_raw, jaw_raw, face_ok, ear_thr, jaw_thr, drowsy_sec, distraction=None):
         """Called from the webrtc thread — all logic lives here."""
         now = time.time()
         with self._lock:
@@ -162,7 +164,12 @@ class DetectionState:
                     self.secs_closed = 0.0
                     if 0.05 < dur < 0.5:      # valid blink duration
                         self.blinks += 1
-
+         # ── Distraction ─────────────────────────────
+            self._distraction = distraction
+            if distraction:
+                self.distract_frames = min(self.distract_frames + 1, 60)
+            else:
+                self.distract_frames = max(self.distract_frames - 1, 0)
             # ── Yawn (jaw blendshape) ───────────────────
             if self.jaw > jaw_thr:
                 self.yawn_frames = min(self.yawn_frames + 1, 60)
@@ -177,10 +184,13 @@ class DetectionState:
                 self._in_yawn = False
 
             # ── Alert ───────────────────────────────────
+           # ── Alert ───────────────────────────────────
             if self.eye_state == "CLOSED" and self.secs_closed >= drowsy_sec:
                 self.alert = "DROWSY"
             elif self.yawn_frames >= 20:
                 self.alert = "YAWN"
+            elif self._distraction and self.distract_frames >= 15:
+                self.alert = "DISTRACTED"
             else:
                 self.alert = ""
 
@@ -202,7 +212,32 @@ LEFT_EYE  = [33,  160, 158, 133, 153, 144]
 RIGHT_EYE = [362, 385, 387, 263, 373, 380]
 MOUTH_OUTER = [61, 40, 37, 0, 267, 270, 291, 321, 375, 321, 405, 314, 17, 84, 181, 91, 61]
 MOUTH_INNER = [78, 82, 87, 13, 317, 312, 308, 402, 317, 14, 87]
+MOUTH_8        = [61,  40,  37,   0, 267, 270, 291, 321]
+NOSE_TIP       = 1
+LEFT_EYE_INNER  = 133
+RIGHT_EYE_INNER = 362
+CHIN           = 152
+FOREHEAD       = 10
+def check_distraction(lm):
+    nose        = lm[NOSE_TIP]
+    left        = lm[LEFT_EYE_INNER]
+    right       = lm[RIGHT_EYE_INNER]
+    chin        = lm[CHIN]
+    forehead    = lm[FOREHEAD]
 
+    face_center_x = (left.x + right.x) / 2.0
+    face_center_y = (chin.y  + forehead.y) / 2.0
+
+    horiz_offset = nose.x - face_center_x   # left/right
+    vert_offset  = nose.y - face_center_y   # up/down
+
+    if abs(horiz_offset) > 0.07:
+        return "DISTRACTED_H"   # looking left or right
+    if vert_offset < -0.07:
+        return "DISTRACTED_U"   # looking up
+    if vert_offset > 0.07:
+        return "DISTRACTED_D"   # looking down
+    return None
 def calc_ear(lm, idx, W, H):
     p = np.array([[lm[i].x*W, lm[i].y*H] for i in idx])
     A = dist.euclidean(p[1], p[5])
@@ -252,13 +287,14 @@ def video_callback(frame):
             jaw_raw = bs.get("jawOpen", 0.0)
 
         # Draw landmarks
+        distraction = check_distraction(lm)
         draw_region(img, lm, LEFT_EYE,  W, H, (0, 225, 80))
         draw_region(img, lm, RIGHT_EYE, W, H, (0, 225, 80))
         draw_region(img, lm, MOUTH_OUTER, W, H, (0, 180, 255))
         draw_region(img, lm, MOUTH_INNER, W, H, (0, 140, 200))
 
     # ── Update thread-safe state ──────────────────────────
-    det.update(ear_raw, jaw_raw, face_ok, ear_thr, jaw_thr, drowsy_sec)
+    det.update(ear_raw, jaw_raw, face_ok, ear_thr, jaw_thr, drowsy_sec, distraction)
     snap = det.get()
 
     # ── Draw HUD on frame ─────────────────────────────────
@@ -299,6 +335,10 @@ def video_callback(frame):
     elif snap["alert"] == "YAWN":
         cv2.rectangle(img, (0, H-65), (W, H), (0, 80, 0), -1)
         cv2.putText(img, "  YAWN DETECTED!", (10, H-18),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.1, (255, 255, 255), 2)
+    elif snap["alert"] == "DISTRACTED":
+        cv2.rectangle(img, (0, H-65), (W, H), (150, 60, 0), -1)
+        cv2.putText(img, "  DISTRACTED! FOCUS!", (10, H-18),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.1, (255, 255, 255), 2)
 
     if not face_ok:
@@ -372,6 +412,11 @@ with col_stats:
             <div style="font-size:2.5rem">🥱</div>
             <div style="font-size:1.4rem;font-weight:700;color:#ffaa00">YAWN DETECTED!</div>
         </div>""", unsafe_allow_html=True)
+    elif snap["alert"] == "DISTRACTED":
+        st.markdown("""<div class="alert-on" style="border-color:#ff8800;background:#1a0a00">
+            <div style="font-size:2.5rem">👀</div>
+            <div style="font-size:1.4rem;font-weight:700;color:#ff8800">DISTRACTED! FOCUS!</div>
+        </div>""", unsafe_allow_html=True)
     else:
         st.markdown("""<div class="alert-off">
             <div style="font-size:2.5rem">✅</div>
@@ -440,8 +485,10 @@ with col_stats:
     alert_now = snap["alert"]
     if alert_now == "DROWSY":
         freq, repeat_ms = 1200, 1500
-    elif alert_now == "YAWN":
+   elif alert_now == "YAWN":
         freq, repeat_ms = 850, 2500
+    elif alert_now == "DISTRACTED":
+        freq, repeat_ms = 1000, 2000
     else:
         freq, repeat_ms = 0, 0
 
