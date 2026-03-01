@@ -200,7 +200,8 @@ det = st.session_state.det   # shorthand
 # ══════════════════════════════════════════════════════════
 LEFT_EYE  = [33,  160, 158, 133, 153, 144]
 RIGHT_EYE = [362, 385, 387, 263, 373, 380]
-MOUTH_8   = [61,  40,  37,   0, 267, 270, 291, 321]
+MOUTH_OUTER = [61, 40, 37, 0, 267, 270, 291, 321, 375, 321, 405, 314, 17, 84, 181, 91, 61]
+MOUTH_INNER = [78, 82, 87, 13, 317, 312, 308, 402, 317, 14, 87]
 
 def calc_ear(lm, idx, W, H):
     p = np.array([[lm[i].x*W, lm[i].y*H] for i in idx])
@@ -253,7 +254,8 @@ def video_callback(frame):
         # Draw landmarks
         draw_region(img, lm, LEFT_EYE,  W, H, (0, 225, 80))
         draw_region(img, lm, RIGHT_EYE, W, H, (0, 225, 80))
-        draw_region(img, lm, MOUTH_8,   W, H, (0, 180, 255))
+        draw_region(img, lm, MOUTH_OUTER, W, H, (0, 180, 255))
+        draw_region(img, lm, MOUTH_INNER, W, H, (0, 140, 200))
 
     # ── Update thread-safe state ──────────────────────────
     det.update(ear_raw, jaw_raw, face_ok, ear_thr, jaw_thr, drowsy_sec)
