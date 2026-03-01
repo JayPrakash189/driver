@@ -481,16 +481,14 @@ with col_stats:
     # components.html() creates an iframe that SURVIVES reruns
     # and keeps playing as long as the alert is active.
     import streamlit.components.v1 as components
-
-    alert_now = snap["alert"]
     if alert_now == "DROWSY":
         freq, repeat_ms = 1200, 1500
-   elif alert_now == "YAWN":
+    elif alert_now == "YAWN":
         freq, repeat_ms = 850, 2500
     elif alert_now == "DISTRACTED":
         freq, repeat_ms = 1000, 2000
     else:
-        freq, repeat_ms = 0, 0
+        freq, repeat_ms = 0, 0v
 
     components.html(f"""<!DOCTYPE html><html><body style="margin:0">
     <script>
